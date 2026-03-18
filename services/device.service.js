@@ -1,11 +1,7 @@
-const repository = require('#repositories');
-const {
-  validate,
-  createDeviceSchema,
-  updateDeviceSchema,
-} = require('#validators');
+import * as repository from '#repositories';
+import { validate, createDeviceSchema, updateDeviceSchema } from '#validators';
 
-function listDevices(room) {
+export function listDevices(room) {
   let devices = repository.getAll();
   if (room) {
     devices = devices.filter(
@@ -15,15 +11,16 @@ function listDevices(room) {
   return devices;
 }
 
-function createDevice(data) {
+export function createDevice(data) {
   validate(createDeviceSchema, data);
+  const allDevices = repository.getAll();
   const lastId =
-    repository.getAll().length > 0 ? repository.getAll().slice(-1)[0].id : 0;
+    allDevices.length > 0 ? allDevices[allDevices.length - 1].id : 0;
   const device = { id: lastId + 1, status: 'off', ...data };
   return repository.add(device);
 }
 
-function updateDevice(id, updates) {
+export function updateDevice(id, updates) {
   validate(updateDeviceSchema, updates);
   if (updates.id) throw { statusCode: 400, message: 'Cannot update id field' };
   const device = repository.update(id, updates);
@@ -31,9 +28,7 @@ function updateDevice(id, updates) {
   return device;
 }
 
-function deleteDevice(id) {
+export function deleteDevice(id) {
   if (!repository.remove(id))
     throw { statusCode: 404, message: 'Device not found' };
 }
-
-module.exports = { listDevices, createDevice, updateDevice, deleteDevice };

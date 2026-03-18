@@ -28,7 +28,7 @@
   "keywords": [],
   "author": "Serhii",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Serugii/TechnologyFrameworkLaboratory/issues"
   },

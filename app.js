@@ -1,7 +1,7 @@
-const { createServer } = require('node:http');
-const config = require('#config');
-const logger = require('#utils');
-const controller = require('#controllers');
+import { createServer } from 'node:http';
+import config from '#config';
+import logger from '#utils';
+import * as controller from '#controllers';
 
 const server = createServer((req, res) => {
   const method = req.method;
@@ -15,9 +15,7 @@ const server = createServer((req, res) => {
 
   let body = '';
 
-  req.on('data', (chunk) => {
-    body += chunk.toString();
-  });
+  req.on('data', (chunk) => (body += chunk.toString()));
 
   req.on('end', () => {
     try {
@@ -74,7 +72,6 @@ const server = createServer((req, res) => {
         return sendResponse(result);
       }
 
-      // Route not found
       res.statusCode = 404;
       logger.handleLog(method, path, res.statusCode);
       return sendResponse({ error: 'Route not found' });
@@ -86,12 +83,11 @@ const server = createServer((req, res) => {
   });
 });
 
-// SERVER LISTEN
 server.listen(config.PORT, config.HOSTNAME, () => {
   console.log(`Server running at http://${config.HOSTNAME}:${config.PORT}`);
 });
 
-// Graceful shutdown
+// graceful shutdown
 function gracefulShutdown(signal) {
   console.log(`Received ${signal}. Starting graceful shutdown...`);
   const timeout = setTimeout(() => {

@@ -1,7 +1,7 @@
-const Ajv = require('ajv');
+import Ajv from 'ajv';
 const ajv = new Ajv({ allErrors: true, strict: true });
 
-const createDeviceSchema = {
+export const createDeviceSchema = {
   type: 'object',
   properties: {
     device: { type: 'string', minLength: 1, maxLength: 50 },
@@ -12,7 +12,7 @@ const createDeviceSchema = {
   additionalProperties: false,
 };
 
-const updateDeviceSchema = {
+export const updateDeviceSchema = {
   type: 'object',
   properties: {
     device: { type: 'string', minLength: 1, maxLength: 50 },
@@ -22,7 +22,7 @@ const updateDeviceSchema = {
   additionalProperties: false,
 };
 
-function validate(schema, data) {
+export function validate(schema, data) {
   const validateFn = ajv.compile(schema);
   const valid = validateFn(data);
 
@@ -36,9 +36,3 @@ function validate(schema, data) {
   }
   return true;
 }
-
-module.exports = {
-  createDeviceSchema,
-  updateDeviceSchema,
-  validate,
-};

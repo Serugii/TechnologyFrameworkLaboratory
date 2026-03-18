@@ -35,4 +35,4 @@ function validateEnv() {
 
 const config = validateEnv();
 
-module.exports = config;
+export default config;
