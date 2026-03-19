@@ -1,35 +1,45 @@
+import Ajv from 'ajv';
+
+const ajv = new Ajv({ allErrors: true, strict: true });
+
+const envSchema = {
+  type: 'object',
+  properties: {
+    PORT: { type: 'string', pattern: '^[0-9]+$' },
+    HOSTNAME: { type: 'string', minLength: 1 },
+    NODE_ENV: { type: 'string', enum: ['development', 'production'] },
+  },
+  required: ['PORT', 'HOSTNAME', 'NODE_ENV'],
+  additionalProperties: true,
+};
+
+const validateEnvSchema = ajv.compile(envSchema);
+
 function validateEnv() {
-  const { PORT, HOSTNAME, NODE_ENV } = process.env;
+  const env = {
+    PORT: process.env.PORT,
+    HOSTNAME: process.env.HOSTNAME,
+    NODE_ENV: process.env.NODE_ENV,
+  };
 
-  if (!PORT) {
-    console.error('PORT is required');
-    process.exit(1);
-  }
+  const valid = validateEnvSchema(env);
 
-  if (isNaN(PORT)) {
-    console.error('PORT must be a number');
-    process.exit(1);
-  }
+  if (!valid) {
+    const errors = validateEnvSchema.errors
+      .map((e) => {
+        const field = e.instancePath || e.params?.missingProperty || 'field';
+        return `${field} ${e.message}`;
+      })
+      .join(', ');
 
-  if (!HOSTNAME) {
-    console.error('HOSTNAME is required');
-    process.exit(1);
-  }
-
-  if (!NODE_ENV) {
-    console.error('NODE_ENV is required');
-    process.exit(1);
-  }
-
-  if (!['development', 'production'].includes(NODE_ENV)) {
-    console.error('NODE_ENV must be development or production');
+    console.error(`Config validation error: ${errors}`);
     process.exit(1);
   }
 
   return {
-    PORT: Number(PORT),
-    HOSTNAME,
-    NODE_ENV,
+    PORT: Number(env.PORT),
+    HOSTNAME: env.HOSTNAME,
+    NODE_ENV: env.NODE_ENV,
   };
 }
 

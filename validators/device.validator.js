@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+
 const ajv = new Ajv({ allErrors: true, strict: true });
 
 export const createDeviceSchema = {
@@ -22,17 +23,24 @@ export const updateDeviceSchema = {
   additionalProperties: false,
 };
 
-export function validate(schema, data) {
-  const validateFn = ajv.compile(schema);
-  const valid = validateFn(data);
+export const createDeviceValidator = ajv.compile(createDeviceSchema);
+export const updateDeviceValidator = ajv.compile(updateDeviceSchema);
+
+export function validate(validator, data) {
+  const valid = validator(data);
 
   if (!valid) {
-    const errors = validateFn.errors
-      .map((e) => `${e.instancePath} ${e.message}`)
+    const errors = validator.errors
+      .map((e) => {
+        const field = e.instancePath || e.params?.missingProperty || 'field';
+        return `${field} ${e.message}`;
+      })
       .join(', ');
+
     const error = new Error(`Validation error: ${errors}`);
     error.statusCode = 400;
     throw error;
   }
+
   return true;
 }
