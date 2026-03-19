@@ -1,4 +1,5 @@
 const Ajv = require('ajv');
+
 const ajv = new Ajv({ allErrors: true, strict: true });
 
 const createDeviceSchema = {
@@ -22,23 +23,30 @@ const updateDeviceSchema = {
   additionalProperties: false,
 };
 
-function validate(schema, data) {
-  const validateFn = ajv.compile(schema);
-  const valid = validateFn(data);
+const createDeviceValidator = ajv.compile(createDeviceSchema);
+const updateDeviceValidator = ajv.compile(updateDeviceSchema);
+
+function validate(validator, data) {
+  const valid = validator(data);
 
   if (!valid) {
-    const errors = validateFn.errors
-      .map((e) => `${e.instancePath} ${e.message}`)
+    const errors = validator.errors
+      .map((e) => {
+        const field = e.instancePath || e.params?.missingProperty || 'field';
+        return `${field} ${e.message}`;
+      })
       .join(', ');
+
     const error = new Error(`Validation error: ${errors}`);
     error.statusCode = 400;
     throw error;
   }
+
   return true;
 }
 
 module.exports = {
-  createDeviceSchema,
-  updateDeviceSchema,
+  createDeviceValidator,
+  updateDeviceValidator,
   validate,
 };
