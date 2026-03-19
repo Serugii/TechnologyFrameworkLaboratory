@@ -1,8 +1,7 @@
 const userService = require('../services/user.service');
-const { count } = require('../state/request-counter');
+const { increment } = require('../state/request-counter');
 
 const getUsers = async (request, reply) => {
-  const { increment } = require('../state/request-counter');
   increment();
 
   const users = await userService.getPublicUsers();
@@ -10,7 +9,6 @@ const getUsers = async (request, reply) => {
 };
 
 const getUserById = async (request, reply) => {
-  const { increment } = require('../state/request-counter');
   increment();
 
   const userRepository = require('../repositories/user.repository');
@@ -22,7 +20,7 @@ const getUserById = async (request, reply) => {
   return { user };
 };
 
-exports = {
+module.exports = {
   getUsers,
-  getUserById
+  getUserById,
 };

@@ -5,5 +5,5 @@ export const increment = () => {
 };
 
 export const getStats = () => ({
-  totalRequests: count
+  totalRequests: count,
 });

@@ -1,8 +1,5 @@
 import * as userRepository from '../repositories/user.repository.js';
 import { count } from '../state/request-counter.js';
-import { initPermissions } from '../services/user.service.js';
-
-initPermissions();
 
 export const getUsers = async (request, reply) => {
   count++;
@@ -22,5 +19,6 @@ const getUserById = async (request, reply) => {
 };
 
 export default {
-  getUserById
+  getUsers,
+  getUserById,
 };

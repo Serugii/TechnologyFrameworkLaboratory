@@ -5,11 +5,11 @@ const increment = () => {
 };
 
 const getStats = () => ({
-  totalRequests: count
+  totalRequests: count,
 });
 
 module.exports = {
   count,
   increment,
-  getStats
+  getStats,
 };

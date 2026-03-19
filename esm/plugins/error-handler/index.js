@@ -5,7 +5,7 @@ const errorHandlerPlugin = async (fastify, options) => {
     request.log.error(error);
     reply.status(error.statusCode || 500).send({
       success: false,
-      message: error.message || 'Internal Server Error'
+      message: error.message || 'Internal Server Error',
     });
   });
 };

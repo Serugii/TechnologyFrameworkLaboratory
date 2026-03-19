@@ -6,11 +6,11 @@ const getUserByIdSchema = {
     params: {
       type: 'object',
       properties: {
-        id: { type: 'integer' }
+        id: { type: 'integer' },
       },
-      required: ['id']
-    }
-  }
+      required: ['id'],
+    },
+  },
 };
 
 export default async function apiRoutes(fastify, options) {
