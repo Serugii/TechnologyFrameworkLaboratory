@@ -8,7 +8,8 @@
     "#services": "./services/device.service.js",
     "#repositories": "./repositories/device.repository.js",
     "#schemas": "./schemas/device.schema.js",
-    "#constants": "./constants/errors.js"
+    "#constants": "./constants/errors.js",
+    "#routes": "./routes/device.routes.js"
   },
   "scripts": {
     "start": "node --env-file=.env app.js",
