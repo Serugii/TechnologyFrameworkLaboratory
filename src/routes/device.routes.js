@@ -92,6 +92,40 @@ export default async function deviceRoutes(fastify) {
     },
   );
 
+  // ---------------- UPLOAD IMAGE ----------------
+  fastify.post('/items/:id/image', async (request, reply) => {
+    const id = parseId(request.params.id, reply);
+    if (!id) return;
+
+    const data = await request.file();
+
+    if (!data) {
+      throw { statusCode: 400, message: 'File is required' };
+    }
+
+    // ---------------- VALIDATE TYPE ----------------
+    if (!['image/jpeg', 'image/png'].includes(data.mimetype)) {
+      throw { statusCode: 400, message: 'Only JPEG and PNG allowed' };
+    }
+
+    // ---------------- LIMIT SIZE ----------------
+    if (data.file.truncated) {
+      throw { statusCode: 400, message: 'File too large (max 5MB)' };
+    }
+
+    const fileBuffer = await data.toBuffer();
+
+    const result = await controller.uploadDeviceImage(
+      request,
+      reply,
+      id,
+      data,
+      fileBuffer,
+    );
+
+    return result;
+  });
+
   // ---------------- PATCH DEVICE ----------------
   fastify.patch(
     '/devices/:id',
@@ -139,4 +173,14 @@ export default async function deviceRoutes(fastify) {
       return { message: 'Device deleted.' };
     },
   );
+
+  // ---------------- EXPORT CSV ----------------
+  fastify.get('/devices/export', async (request, reply) => {
+    return controller.exportDevices(request, reply);
+  });
+
+  // ---------------- IMPORT ----------------
+  fastify.post('/devices/import', async (request, reply) => {
+    return controller.importDevices(request, reply);
+  });
 }

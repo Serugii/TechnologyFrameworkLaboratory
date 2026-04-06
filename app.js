@@ -1,52 +1,47 @@
 import Fastify from 'fastify';
+import path from 'path';
 import fastifyEnv from '@fastify/env';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
+
 import deviceRoutes from '#routes';
 import { envSchema } from '#schemas';
-
-// ---------------- ENV (TEMP FASTIFY FOR CONFIG) ----------------
-const fastifyTemp = Fastify();
-await fastifyTemp.register(fastifyEnv, {
-  schema: envSchema,
-  dotenv: true,
-});
-
-const isDev = fastifyTemp.config.NODE_ENV === 'development';
+import { createBackup } from '#utils/backup.utils.js';
+import { checkMigrationNeeded } from '#utils/migration.utils.js';
 
 // ---------------- LOGGER CONFIG ----------------
-const loggerConfig = isDev
-  ? {
-      level: 'info',
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'yyyy-mm-dd HH:MM:ss.l',
-          ignore: 'pid,hostname',
-        },
-      },
-    }
-  : {
-      level: 'error',
-    };
+// eslint-disable-next-line no-restricted-properties
+const isDev = process.env.NODE_ENV === 'development';
 
-// ---------------- FASTIFY INIT ----------------
 const fastify = Fastify({
-  logger: loggerConfig,
+  logger: isDev
+    ? {
+        level: 'info',
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'yyyy-mm-dd HH:MM:ss.l',
+            ignore: 'pid,hostname',
+          },
+        },
+      }
+    : {
+        level: 'error',
+      },
   disableRequestLogging: true,
 });
 
-// ---------------- REGISTER ENV ----------------
+// ---------------- ENV ----------------
 await fastify.register(fastifyEnv, {
   schema: envSchema,
   dotenv: true,
 });
 
-// ---------------- HOOKS (LOGGING) ----------------
-
-// DEVELOPMENT → логуємо ВСІ запити
+// ---------------- HOOKS ----------------
 if (isDev) {
   fastify.addHook('onRequest', async (request) => {
     fastify.log.info({
@@ -67,7 +62,7 @@ if (isDev) {
   });
 }
 
-// PRODUCTION → логуємо тільки помилки
+// PRODUCTION
 if (!isDev) {
   fastify.addHook('onResponse', async (request, reply) => {
     if (reply.statusCode >= 400) {
@@ -90,8 +85,18 @@ await fastify.register(cors, {
 await fastify.register(helmet, { global: true });
 await fastify.register(sensible);
 
-// ---------------- ROUTES ----------------
+await fastify.register(multipart, {
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
+
 await fastify.register(deviceRoutes);
+
+await fastify.register(fastifyStatic, {
+  root: path.join(process.cwd(), 'uploads'),
+  prefix: '/uploads/',
+});
 
 // ---------------- ERROR HANDLER ----------------
 fastify.setErrorHandler((error, request, reply) => {
@@ -107,24 +112,23 @@ fastify.setErrorHandler((error, request, reply) => {
   });
 });
 
-// ---------------- START ----------------
-const start = async () => {
-  try {
-    await fastify.listen({
-      port: fastify.config.PORT,
-      host: fastify.config.HOSTNAME,
-    });
+// ---------------- STARTUP ----------------
+await createBackup();
+await checkMigrationNeeded(fastify);
 
-    fastify.log.info(
-      `Server running at ${fastify.config.HOSTNAME}:${fastify.config.PORT}`,
-    );
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-};
+try {
+  await fastify.listen({
+    port: fastify.config.PORT,
+    host: fastify.config.HOSTNAME,
+  });
 
-await start();
+  fastify.log.info(
+    `Server running at ${fastify.config.HOSTNAME}:${fastify.config.PORT}`,
+  );
+} catch (err) {
+  fastify.log.error(err);
+  process.exit(1);
+}
 
 // ---------------- GRACEFUL SHUTDOWN ----------------
 const gracefulShutdown = (signal) => {

@@ -1,0 +1,10 @@
+{
+  "id": 1,
+  "device": "Smart Lamp",
+  "status": "on",
+  "room": "Kitchen",
+  "description": "",
+  "image": null,
+  "createdAt": null,
+  "updatedAt": null
+}

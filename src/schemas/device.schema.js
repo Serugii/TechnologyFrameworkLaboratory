@@ -2,6 +2,10 @@ const deviceFields = {
   device: { type: 'string', minLength: 1, maxLength: 50 },
   room: { type: 'string', minLength: 1, maxLength: 30 },
   status: { type: 'string', enum: ['on', 'off'] },
+  description: { type: 'string', maxLength: 255 },
+  image: {
+    anyOf: [{ type: 'string' }, { type: 'null' }],
+  },
 };
 
 // ---------------- BODY ----------------
@@ -21,10 +25,21 @@ export const deviceUpdateSchema = {
 // ---------------- RESPONSE ----------------
 export const deviceResponseSchema = {
   type: 'object',
-  required: ['id', 'device', 'room', 'status'],
+  required: [
+    'id',
+    'device',
+    'room',
+    'status',
+    'description',
+    'image',
+    'createdAt',
+    'updatedAt',
+  ],
   properties: {
     id: { type: 'number' },
     ...deviceFields,
+    createdAt: { type: 'string' },
+    updatedAt: { type: 'string' },
   },
 };
 

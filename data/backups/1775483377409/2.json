@@ -1,0 +1,10 @@
+{
+  "id": 2,
+  "device": "Air Conditioner",
+  "status": "off",
+  "room": "Bedroom",
+  "description": "",
+  "image": null,
+  "createdAt": null,
+  "updatedAt": null
+}
