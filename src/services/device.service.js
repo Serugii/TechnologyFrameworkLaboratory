@@ -4,6 +4,7 @@ import * as repository from '#repositories';
 import fs from 'fs/promises';
 import path from 'path';
 import { buildImageUrl } from '#utils/url.utils.js';
+import { fetchExternal } from '#utils/fetch.utils.js';
 
 export async function importDevices(buffer, filename, mimetype, validate) {
   let items = [];
@@ -120,6 +121,30 @@ export async function getDeviceById(id) {
   return repository.findById(id);
 }
 
+export async function getDeviceDetails(id, externalBaseUrl) {
+  const device = await repository.findWithDetails(id);
+
+  if (!device) return null;
+
+  const deviceTypeName = device.device?.toLowerCase();
+  const url = `${externalBaseUrl}/deviceTypes?type=${deviceTypeName}`;
+
+  const externalResults = await fetchExternal(url);
+
+  const typeInfo =
+    Array.isArray(externalResults) && externalResults.length > 0
+      ? externalResults[0]
+      : null;
+
+  return {
+    ...device,
+    typeDetails: {
+      type: typeInfo?.type ?? null,
+      powerWatt: typeInfo?.powerWatt ?? null,
+    },
+  };
+}
+
 export async function saveDeviceImage(id, file, buffer) {
   const uploadDir = path.join(process.cwd(), 'uploads', String(id));
 
@@ -139,4 +164,26 @@ export async function saveDeviceImage(id, file, buffer) {
   });
 
   return device;
+}
+
+export async function listDevicesPaginated(page = 1, limit = 5) {
+  const devices = await repository.findAll();
+
+  const total = devices.length;
+  const totalPages = Math.ceil(total / limit);
+
+  const start = (page - 1) * limit;
+  const end = start + limit;
+
+  const data = devices.slice(start, end);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages,
+    },
+  };
 }

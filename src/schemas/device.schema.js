@@ -97,5 +97,15 @@ export const envSchema = {
     HOSTNAME: { type: 'string' },
     NODE_ENV: { type: 'string', enum: ['development', 'production'] },
     ADMIN_API_KEY: { type: 'string' },
+    GITHUB_TOKEN: { type: 'string', default: '' },
   },
+};
+
+export const paginationQuerySchema = {
+  type: 'object',
+  properties: {
+    page: { type: 'integer', minimum: 1, default: 1 },
+    limit: { type: 'integer', minimum: 1, maximum: 100, default: 5 },
+  },
+  additionalProperties: false,
 };

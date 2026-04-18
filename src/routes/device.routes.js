@@ -9,6 +9,7 @@ import {
   deviceQuerySchema,
   devicePatchResponseSchema,
   deviceDeleteResponseSchema,
+  paginationQuerySchema,
 } from '#schemas';
 
 const parseId = (id, reply) => {
@@ -52,6 +53,9 @@ export default async function deviceRoutes(fastify) {
     '/devices',
     {
       schema: {
+        summary: 'Отримати список пристроїв',
+        description: 'Перегляд пристроїв',
+        tags: ['Devices'],
         querystring: deviceQuerySchema,
         response: {
           200: {
@@ -66,13 +70,8 @@ export default async function deviceRoutes(fastify) {
       },
     },
     async (request, reply) => {
-      const result = await controller.getDevices(null, reply, request.query);
-
-      if (!result || result.items.length === 0) {
-        return reply.notFound(ERRORS.DEVICE_NOT_FOUND);
-      }
-
-      return result;
+      const result = await controller.getDevices(request.query);
+      return reply.code(200).send(result);
     },
   );
 
@@ -81,6 +80,9 @@ export default async function deviceRoutes(fastify) {
     '/devices',
     {
       schema: {
+        summary: 'Створення нового пристрою',
+        description: 'Додавання нового пристрою до системи',
+        tags: ['Devices'],
         body: deviceBodySchema,
         response: { 201: deviceCreateResponseSchema },
       },
@@ -93,44 +95,68 @@ export default async function deviceRoutes(fastify) {
   );
 
   // ---------------- UPLOAD IMAGE ----------------
-  fastify.post('/items/:id/image', async (request, reply) => {
-    const id = parseId(request.params.id, reply);
-    if (!id) return;
+  fastify.post(
+    '/devices/:id/image',
+    {
+      schema: {
+        summary: 'Завантаження зображення для пристрою',
+        description: 'Дозволяє завантажити зображення для конкретного пристрою',
+        tags: ['Devices'],
+        params: deviceParamsSchema,
+        consumes: ['multipart/form-data'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              image: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const id = parseId(request.params.id, reply);
+      if (!id) return;
 
-    const data = await request.file();
+      const data = await request.file();
 
-    if (!data) {
-      throw { statusCode: 400, message: 'File is required' };
-    }
+      if (!data) {
+        throw { statusCode: 400, message: 'File is required' };
+      }
 
-    // ---------------- VALIDATE TYPE ----------------
-    if (!['image/jpeg', 'image/png'].includes(data.mimetype)) {
-      throw { statusCode: 400, message: 'Only JPEG and PNG allowed' };
-    }
+      // ---------------- VALIDATE TYPE ----------------
+      if (!['image/jpeg', 'image/png'].includes(data.mimetype)) {
+        throw { statusCode: 400, message: 'Only JPEG and PNG allowed' };
+      }
 
-    // ---------------- LIMIT SIZE ----------------
-    if (data.file.truncated) {
-      throw { statusCode: 400, message: 'File too large (max 5MB)' };
-    }
+      // ---------------- LIMIT SIZE ----------------
+      if (data.file.truncated) {
+        throw { statusCode: 400, message: 'File too large (max 5MB)' };
+      }
 
-    const fileBuffer = await data.toBuffer();
+      const fileBuffer = await data.toBuffer();
 
-    const result = await controller.uploadDeviceImage(
-      request,
-      reply,
-      id,
-      data,
-      fileBuffer,
-    );
+      const result = await controller.uploadDeviceImage(
+        request,
+        reply,
+        id,
+        data,
+        fileBuffer,
+      );
 
-    return result;
-  });
+      return result;
+    },
+  );
 
   // ---------------- PATCH DEVICE ----------------
   fastify.patch(
     '/devices/:id',
     {
       schema: {
+        summary: 'Оновлення пристрою',
+        description: 'Оновлення інформації про конкретний пристрій',
+        tags: ['Devices'],
         params: deviceParamsSchema,
         body: deviceUpdateSchema,
         response: { 200: devicePatchResponseSchema },
@@ -158,8 +184,11 @@ export default async function deviceRoutes(fastify) {
     '/devices/:id',
     {
       schema: {
+        summary: 'Видалення пристрою',
+        description: 'Видалення конкретного пристрою з системи',
+        tags: ['Devices'],
         params: deviceParamsSchema,
-        response: { 200: deviceDeleteResponseSchema },
+        response: { 204: { type: 'null' } },
       },
     },
     async (request, reply) => {
@@ -170,17 +199,105 @@ export default async function deviceRoutes(fastify) {
 
       if (!result) return reply.notFound(ERRORS.DEVICE_NOT_FOUND);
 
-      return { message: 'Device deleted.' };
+      return reply.code(204).send();
+    },
+  );
+
+  // ---------------- GET DEVICE DETAILS ----------------
+  fastify.get(
+    '/devices/:id/details',
+    {
+      schema: {
+        summary: 'Деталі пристрою з зовнішнім типом',
+        description:
+          'Повертає дані пристрою з файлового сховища, збагачені інформацією про тип із зовнішнього JSON Server',
+        tags: ['Devices'],
+        params: deviceParamsSchema,
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              device: { type: 'string' },
+              status: { type: 'string' },
+              room: { type: 'string' },
+              description: { type: 'string' },
+              image: { type: ['string', 'null'] },
+              createdAt: { type: ['string', 'null'] },
+              updatedAt: { type: ['string', 'null'] },
+              typeDetails: {
+                type: 'object',
+                properties: {
+                  type: { type: ['string', 'null'] },
+                  powerWatt: { type: ['number', 'null'] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const id = parseId(request.params.id, reply);
+      if (!id) return;
+
+      const externalBaseUrl =
+        fastify.config.EXTERNAL_API_URL ?? 'http://localhost:3001';
+
+      const result = await controller.getDeviceDetails(
+        request,
+        reply,
+        id,
+        externalBaseUrl,
+      );
+
+      return reply.code(200).send(result);
     },
   );
 
   // ---------------- EXPORT CSV ----------------
-  fastify.get('/devices/export', async (request, reply) => {
-    return controller.exportDevices(request, reply);
-  });
+  fastify.get(
+    '/devices/export',
+    {
+      schema: {
+        summary: 'Експорт пристроїв у CSV',
+        description: 'Експортує всі пристрої у форматі CSV',
+        tags: ['Devices'],
+        response: {
+          200: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      return controller.exportDevices(request, reply);
+    },
+  );
 
   // ---------------- IMPORT ----------------
-  fastify.post('/devices/import', async (request, reply) => {
-    return controller.importDevices(request, reply);
-  });
+  fastify.post(
+    '/devices/import',
+    {
+      schema: {
+        summary: 'Імпорт пристроїв',
+        description: 'Імпортує пристрої з наданого CSV файлу',
+        tags: ['Devices'],
+        response: {
+          201: {
+            type: 'object',
+            properties: {
+              imported: { type: 'number' },
+              failed: { type: 'number' },
+              errors: { type: 'array' },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await controller.importDevices(request);
+      return reply.code(201).send(result);
+    },
+  );
 }

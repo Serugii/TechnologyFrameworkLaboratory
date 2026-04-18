@@ -1,10 +1,16 @@
 import * as service from '#services';
 import { deviceBodySchema } from '#schemas';
 
-export async function getDevices(req, res, query) {
+export async function getDevices(query) {
   const devices = await service.listDevices(query.room);
-  res.statusCode = 200;
   return { count: devices.length, items: devices };
+}
+
+export async function getDevicesPaginated(query) {
+  const page = query.page || 1;
+  const limit = query.limit || 10;
+
+  return service.listDevicesPaginated(page, limit);
 }
 
 export async function postDevice(req, res, body) {
@@ -21,7 +27,7 @@ export async function patchDevice(req, res, id, body) {
 
 export async function deleteDevice(req, res, id) {
   await service.deleteDevice(id);
-  res.statusCode = 200;
+  res.statusCode = 204;
   return { message: 'Deleted' };
 }
 
@@ -55,7 +61,6 @@ export async function importDevices(req, res) {
     validate,
   );
 
-  res.statusCode = 200;
   return result;
 }
 
@@ -70,4 +75,14 @@ export async function uploadDeviceImage(req, res, id, file, buffer) {
 
   res.statusCode = 200;
   return { message: 'Image uploaded', image: result.image };
+}
+
+export async function getDeviceDetails(req, res, id, externalBaseUrl) {
+  const result = await service.getDeviceDetails(id, externalBaseUrl);
+
+  if (!result) {
+    throw { statusCode: 404, message: 'Device not found' };
+  }
+
+  return result;
 }

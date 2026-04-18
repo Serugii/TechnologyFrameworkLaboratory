@@ -86,3 +86,7 @@ export async function remove(id) {
     throw error;
   }
 }
+
+export async function findWithDetails(id) {
+  return findById(id);
+}

@@ -6,8 +6,14 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import fastifyStatic from '@fastify/static';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUI from '@fastify/swagger-ui';
 
 import deviceRoutes from '#routes';
+import deviceRoutesV2 from './src/routes/device.routes.v2.js';
+import githubRoutesV1 from './src/routes/github.routes.v1.js';
+import githubRoutesV2 from './src/routes/github.routes.v2.js';
 import { envSchema } from '#schemas';
 import { createBackup } from '#utils/backup.utils.js';
 import { checkMigrationNeeded } from '#utils/migration.utils.js';
@@ -91,7 +97,51 @@ await fastify.register(multipart, {
   },
 });
 
-await fastify.register(deviceRoutes);
+await fastify.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+  errorResponseBuilder: (request, context) => {
+    return {
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: `Rate limit exceeded. Try again in ${context.after}`,
+    };
+  },
+});
+
+await fastify.register(swagger, {
+  openapi: {
+    info: {
+      title: 'Smart Home API',
+      description: 'API для керування smart devices',
+      version: '1.0.0',
+    },
+  },
+});
+
+await fastify.register(swaggerUI, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+  },
+  staticCSP: true,
+});
+
+await fastify.register(deviceRoutes, {
+  prefix: '/api/v1',
+});
+
+await fastify.register(deviceRoutesV2, {
+  prefix: '/api/v2',
+});
+
+await fastify.register(githubRoutesV1, {
+  prefix: '/api/v1',
+});
+
+await fastify.register(githubRoutesV2, {
+  prefix: '/api/v2',
+});
 
 await fastify.register(fastifyStatic, {
   root: path.join(process.cwd(), 'uploads'),
