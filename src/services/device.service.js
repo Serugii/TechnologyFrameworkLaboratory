@@ -167,18 +167,14 @@ export async function saveDeviceImage(id, file, buffer) {
 }
 
 export async function listDevicesPaginated(page = 1, limit = 5) {
-  const devices = await repository.findAll();
+  const offset = (page - 1) * limit;
 
-  const total = devices.length;
+  const { items, total } = await repository.findPaginated(offset, limit);
+
   const totalPages = Math.ceil(total / limit);
 
-  const start = (page - 1) * limit;
-  const end = start + limit;
-
-  const data = devices.slice(start, end);
-
   return {
-    data,
+    data: items,
     meta: {
       total,
       page,

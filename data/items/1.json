@@ -1,8 +1,8 @@
 {
   "id": 1,
-  "device": "TV",
+  "device": "Smart Lamp",
   "status": "on",
-  "room": "Bedroom",
+  "room": "Kitchen",
   "description": "",
   "image": null,
   "createdAt": null,

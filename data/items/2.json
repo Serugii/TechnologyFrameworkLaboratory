@@ -1,7 +1,7 @@
 {
   "id": 2,
-  "device": "TV",
-  "status": "on",
+  "device": "Air Conditioner",
+  "status": "off",
   "room": "Bedroom",
   "description": "",
   "image": null,

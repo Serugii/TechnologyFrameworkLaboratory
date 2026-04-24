@@ -90,3 +90,23 @@ export async function remove(id) {
 export async function findWithDetails(id) {
   return findById(id);
 }
+
+export async function findPaginated(offset, limit) {
+  await ensureDir();
+
+  const files = await fs.readdir(DIR);
+
+  const selectedFiles = files.sort().slice(offset, offset + limit);
+
+  const items = await Promise.all(
+    selectedFiles.map(async (file) => {
+      const content = await fs.readFile(path.join(DIR, file), 'utf8');
+      return JSON.parse(content);
+    }),
+  );
+
+  return {
+    items,
+    total: files.length,
+  };
+}
