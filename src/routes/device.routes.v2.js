@@ -1,5 +1,8 @@
 import * as controller from '#controllers';
-import { paginationQuerySchema, deviceResponseSchema } from '#schemas';
+import {
+  paginationQuerySchema,
+  paginatedDevicesResponseSchema,
+} from '#schemas';
 
 export default async function deviceRoutesV2(fastify) {
   fastify.get(
@@ -11,24 +14,7 @@ export default async function deviceRoutesV2(fastify) {
         tags: ['Devices'],
         querystring: paginationQuerySchema,
         response: {
-          200: {
-            type: 'object',
-            properties: {
-              data: {
-                type: 'array',
-                items: deviceResponseSchema,
-              },
-              meta: {
-                type: 'object',
-                properties: {
-                  total: { type: 'number' },
-                  page: { type: 'number' },
-                  limit: { type: 'number' },
-                  totalPages: { type: 'number' },
-                },
-              },
-            },
-          },
+          200: paginatedDevicesResponseSchema,
         },
       },
     },

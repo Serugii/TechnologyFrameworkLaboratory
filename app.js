@@ -9,11 +9,14 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
+import websocket from '@fastify/websocket';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
 import githubRoutesV1 from './src/routes/github.routes.v1.js';
 import githubRoutesV2 from './src/routes/github.routes.v2.js';
+import deviceWsRoutes from './src/routes/device.ws.routes.js';
+import backupRoutes from './src/routes/device.backup.routes.js';
 import { envSchema } from '#schemas';
 import { createBackup } from '#utils/backup.utils.js';
 import { checkMigrationNeeded } from '#utils/migration.utils.js';
@@ -127,6 +130,8 @@ await fastify.register(swaggerUI, {
   staticCSP: true,
 });
 
+await fastify.register(websocket);
+
 await fastify.register(deviceRoutes, {
   prefix: '/api/v1',
 });
@@ -141,6 +146,14 @@ await fastify.register(githubRoutesV1, {
 
 await fastify.register(githubRoutesV2, {
   prefix: '/api/v2',
+});
+
+await fastify.register(deviceWsRoutes, {
+  prefix: '/api/v1',
+});
+
+await fastify.register(backupRoutes, {
+  prefix: '/api/v1',
 });
 
 await fastify.register(fastifyStatic, {

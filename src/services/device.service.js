@@ -1,15 +1,18 @@
-import { stringify } from 'csv-stringify/sync';
+import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
 import * as repository from '#repositories';
 import fs from 'fs/promises';
 import path from 'path';
+import { Readable } from 'stream';
 import { buildImageUrl } from '#utils/url.utils.js';
 import { fetchExternal } from '#utils/fetch.utils.js';
+import { ActiveStatusTransform } from '../transforms/activeStatus.transform.js';
+
+const ITEMS_DIR = path.join(process.cwd(), 'data', 'items');
 
 export async function importDevices(buffer, filename, mimetype, validate) {
   let items = [];
 
-  // ---------------- PARSE ----------------
   if (mimetype === 'application/json' || filename.endsWith('.json')) {
     try {
       items = JSON.parse(buffer.toString());
@@ -26,16 +29,10 @@ export async function importDevices(buffer, filename, mimetype, validate) {
     throw { statusCode: 400, message: 'Unsupported file format' };
   }
 
-  // ---------------- VALIDATION ----------------
-  const result = {
-    imported: 0,
-    failed: 0,
-    errors: [],
-  };
+  const result = { imported: 0, failed: 0, errors: [] };
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-
     const isValid = validate(item);
 
     if (!isValid) {
@@ -52,10 +49,7 @@ export async function importDevices(buffer, filename, mimetype, validate) {
       result.imported++;
     } catch (e) {
       result.failed++;
-      result.errors.push({
-        index: i + 1,
-        reason: 'Save failed',
-      });
+      result.errors.push({ index: i + 1, reason: 'Save failed' });
     }
   }
 
@@ -64,57 +58,99 @@ export async function importDevices(buffer, filename, mimetype, validate) {
 
 export async function listDevices(room) {
   let devices = await repository.findAll();
-
   if (room) {
     devices = devices.filter(
       (d) => d.room.toLowerCase() === room.toLowerCase(),
     );
   }
-
   return devices;
 }
 
 export async function createDevice(data) {
-  const device = await repository.create(data);
-  return device;
+  return repository.create(data);
 }
 
 export async function updateDevice(id, updates) {
   if (updates.id) {
     throw { statusCode: 400, message: 'Cannot update id field' };
   }
-
   const device = await repository.update(id, updates);
-
   if (!device) {
     throw { statusCode: 404, message: 'Device not found' };
   }
-
   return device;
 }
 
 export async function deleteDevice(id) {
   const success = await repository.remove(id);
-
   if (!success) {
     throw { statusCode: 404, message: 'Device not found' };
   }
 }
 
+// ---------------- EXPORT (старий, без стрімінгу) ----------------
 export async function exportDevices(baseUrl) {
   const devices = await repository.findAll();
-
   const data = devices.map((d) => ({
     ...d,
     image: buildImageUrl(baseUrl, d.image),
   }));
+  const { stringify: stringifySync } = await import('csv-stringify/sync');
+  return stringifySync(data, { header: true, delimiter: ';' });
+}
 
-  const csv = stringify(data, {
-    header: true,
-    delimiter: ';',
-  });
+// ---------------- EXPORT STREAM ----------------
+export async function exportDevicesStream(baseUrl, withTransform) {
+  const devices = await repository.findAll();
 
-  return csv;
+  const source = Readable.from(
+    devices.map((d) => ({
+      ...d,
+      image: buildImageUrl(baseUrl, d.image),
+    })),
+  );
+
+  const csvStringifier = stringify({ header: true, delimiter: ';' });
+
+  if (withTransform) {
+    const transformer = new ActiveStatusTransform();
+    source.pipe(transformer).pipe(csvStringifier);
+  } else {
+    source.pipe(csvStringifier);
+  }
+
+  return csvStringifier;
+}
+
+// ---------------- STREAM NDJSON ----------------
+
+function delay(ms) {
+  console.log(`Delaying for ${ms}ms...`);
+  return new Promise((res) => setTimeout(res, ms));
+}
+
+export async function streamDevices() {
+  async function* deviceGenerator() {
+    let files;
+
+    try {
+      files = await fs.readdir(ITEMS_DIR);
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+
+    for (const file of files.sort()) {
+      if (!file.endsWith('.json') || file.endsWith('.tmp.json')) continue;
+      const content = await fs.readFile(path.join(ITEMS_DIR, file), 'utf8');
+
+      await delay(1000); // штучна затримка для демонстрації стрімінгу
+
+      yield JSON.parse(content);
+    }
+  }
+
+  return Readable.from(deviceGenerator());
 }
 
 export async function getDeviceById(id) {
@@ -123,12 +159,10 @@ export async function getDeviceById(id) {
 
 export async function getDeviceDetails(id, externalBaseUrl) {
   const device = await repository.findWithDetails(id);
-
   if (!device) return null;
 
   const deviceTypeName = device.device?.toLowerCase();
   const url = `${externalBaseUrl}/deviceTypes?type=${deviceTypeName}`;
-
   const externalResults = await fetchExternal(url);
 
   const typeInfo =
@@ -147,39 +181,21 @@ export async function getDeviceDetails(id, externalBaseUrl) {
 
 export async function saveDeviceImage(id, file, buffer) {
   const uploadDir = path.join(process.cwd(), 'uploads', String(id));
-
   await fs.mkdir(uploadDir, { recursive: true });
 
   const extension = file.mimetype === 'image/png' ? 'png' : 'jpg';
   const filename = `image.${extension}`;
-
   const filePath = path.join(uploadDir, filename);
 
   await fs.writeFile(filePath, buffer);
 
   const relativePath = `/${id}/${filename}`;
-
-  const device = await repository.update(id, {
-    image: relativePath,
-  });
-
-  return device;
+  return repository.update(id, { image: relativePath });
 }
 
 export async function listDevicesPaginated(page = 1, limit = 5) {
   const offset = (page - 1) * limit;
-
   const { items, total } = await repository.findPaginated(offset, limit);
-
   const totalPages = Math.ceil(total / limit);
-
-  return {
-    data: items,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages,
-    },
-  };
+  return { data: items, meta: { total, page, limit, totalPages } };
 }

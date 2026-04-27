@@ -32,7 +32,6 @@ export default async function deviceRoutes(fastify) {
   fastify.addHook('onRequest', async (request, reply) => {
     if (request.url.startsWith('/health/details')) {
       const apiKey = request.headers['x-api-key'];
-
       if (!apiKey || apiKey !== fastify.config.ADMIN_API_KEY) {
         return reply.unauthorized(ERRORS.UNAUTHORIZED);
       }
@@ -120,32 +119,18 @@ export default async function deviceRoutes(fastify) {
       if (!id) return;
 
       const data = await request.file();
+      if (!data) throw { statusCode: 400, message: 'File is required' };
 
-      if (!data) {
-        throw { statusCode: 400, message: 'File is required' };
-      }
-
-      // ---------------- VALIDATE TYPE ----------------
       if (!['image/jpeg', 'image/png'].includes(data.mimetype)) {
         throw { statusCode: 400, message: 'Only JPEG and PNG allowed' };
       }
 
-      // ---------------- LIMIT SIZE ----------------
       if (data.file.truncated) {
         throw { statusCode: 400, message: 'File too large (max 5MB)' };
       }
 
       const fileBuffer = await data.toBuffer();
-
-      const result = await controller.uploadDeviceImage(
-        request,
-        reply,
-        id,
-        data,
-        fileBuffer,
-      );
-
-      return result;
+      return controller.uploadDeviceImage(request, reply, id, data, fileBuffer);
     },
   );
 
@@ -172,9 +157,7 @@ export default async function deviceRoutes(fastify) {
         id,
         request.body,
       );
-
       if (!result) return reply.notFound(ERRORS.DEVICE_NOT_FOUND);
-
       return result;
     },
   );
@@ -196,9 +179,7 @@ export default async function deviceRoutes(fastify) {
       if (!id) return;
 
       const result = await controller.deleteDevice(null, reply, id);
-
       if (!result) return reply.notFound(ERRORS.DEVICE_NOT_FOUND);
-
       return reply.code(204).send();
     },
   );
@@ -261,17 +242,39 @@ export default async function deviceRoutes(fastify) {
     {
       schema: {
         summary: 'Експорт пристроїв у CSV',
-        description: 'Експортує всі пристрої у форматі CSV',
+        description:
+          'Експортує всі пристрої у форматі CSV. При ?transform=true додає поле isActive на основі status.',
         tags: ['Devices'],
-        response: {
-          200: {
-            type: 'string',
+        querystring: {
+          type: 'object',
+          properties: {
+            transform: { type: 'string', enum: ['true', 'false'] },
           },
+          additionalProperties: false,
+        },
+        response: {
+          200: { type: 'string' },
         },
       },
     },
     async (request, reply) => {
       return controller.exportDevices(request, reply);
+    },
+  );
+
+  // ---------------- STREAM NDJSON ----------------
+  fastify.get(
+    '/devices/stream',
+    {
+      schema: {
+        summary: 'Потоковий список пристроїв у NDJSON',
+        description:
+          "Відправляє записи по одному через Transform stream у форматі application/x-ndjson без завантаження всіх даних в пам'ять.",
+        tags: ['Devices'],
+      },
+    },
+    async (request, reply) => {
+      return controller.streamDevices(request, reply);
     },
   );
 

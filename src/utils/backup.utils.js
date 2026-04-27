@@ -1,26 +1,43 @@
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
+import { createGzip } from 'zlib';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 
 const ITEMS_DIR = path.join(process.cwd(), 'data', 'items');
 const BACKUPS_DIR = path.join(process.cwd(), 'data', 'backups');
+const MAX_BACKUPS = 5;
 
 export const createBackup = async () => {
   try {
-    const timestamp = Date.now().toString();
-    const backupDir = path.join(BACKUPS_DIR, timestamp);
+    await fsp.mkdir(BACKUPS_DIR, { recursive: true });
 
-    await fs.mkdir(backupDir, { recursive: true });
+    const files = await fsp.readdir(ITEMS_DIR);
 
-    const files = await fs.readdir(ITEMS_DIR);
-
-    for (const file of files) {
-      const src = path.join(ITEMS_DIR, file);
-      const dest = path.join(backupDir, file);
-
-      await fs.copyFile(src, dest);
+    if (files.length === 0) {
+      console.log('No items to backup yet');
+      return;
     }
 
-    console.log(`Backup created: ${timestamp}`);
+    const timestamp = Date.now().toString();
+    const backupPath = path.join(BACKUPS_DIR, `${timestamp}.gz`);
+
+    const chunks = [];
+    for (const file of files) {
+      const content = await fsp.readFile(path.join(ITEMS_DIR, file));
+      chunks.push(content);
+      chunks.push(Buffer.from('\n'));
+    }
+    const combined = Buffer.concat(chunks);
+
+    await pipeline(
+      Readable.from(combined),
+      createGzip(),
+      fs.createWriteStream(backupPath),
+    );
+
+    console.log(`Backup created: ${timestamp}.gz`);
 
     await cleanupOldBackups();
   } catch (error) {
@@ -34,18 +51,21 @@ export const createBackup = async () => {
 
 const cleanupOldBackups = async () => {
   try {
-    const dirs = await fs.readdir(BACKUPS_DIR);
+    const entries = await fsp.readdir(BACKUPS_DIR);
 
-    const sorted = dirs.sort((a, b) => Number(a) - Number(b));
+    const backups = entries
+      .filter((name) => name.endsWith('.gz'))
+      .sort(
+        (a, b) => Number(a.replace('.gz', '')) - Number(b.replace('.gz', '')),
+      );
 
-    if (sorted.length <= 5) return;
+    if (backups.length <= MAX_BACKUPS) return;
 
-    const toDelete = sorted.slice(0, sorted.length - 5);
+    const toDelete = backups.slice(0, backups.length - MAX_BACKUPS);
 
-    for (const dir of toDelete) {
-      const fullPath = path.join(BACKUPS_DIR, dir);
-      await fs.rm(fullPath, { recursive: true });
-      console.log(`Deleted old backup: ${dir}`);
+    for (const file of toDelete) {
+      await fsp.unlink(path.join(BACKUPS_DIR, file));
+      console.log(`Deleted old backup: ${file}`);
     }
   } catch (error) {
     if (error.code !== 'ENOENT') {

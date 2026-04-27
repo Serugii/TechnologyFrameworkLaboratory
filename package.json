@@ -11,7 +11,9 @@
     "#schemas": "./src/schemas/device.schema.js",
     "#constants": "./src/constants/errors.js",
     "#routes": "./src/routes/device.routes.js",
-    "#utils/*": "./src/utils/*"
+    "#utils/*": "./src/utils/*",
+    "#transforms/*": "./src/transforms/*",
+    "#events": "./src/events/device.events.js"
   },
   "scripts": {
     "start": "node --env-file=.env app.js",
@@ -56,6 +58,7 @@
     "@fastify/static": "^9.0.0",
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
+    "@fastify/websocket": "^11.2.0",
     "csv-parse": "^6.2.1",
     "csv-stringify": "^6.7.0",
     "fastify": "^5.8.4"

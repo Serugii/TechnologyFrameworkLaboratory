@@ -109,3 +109,56 @@ export const paginationQuerySchema = {
   },
   additionalProperties: false,
 };
+
+// ---------------- BACKUP ----------------
+export const backupParamsSchema = {
+  type: 'object',
+  required: ['timestamp'],
+  properties: {
+    timestamp: { type: 'string', pattern: '^[0-9]+$' },
+  },
+};
+
+export const backupHeadersSchema = {
+  type: 'object',
+  required: ['x-api-key'],
+  properties: {
+    'x-api-key': { type: 'string' },
+  },
+};
+
+export const backupResponseSchema = {
+  200: {
+    type: 'string',
+    format: 'binary',
+    description: 'Gzip-стиснений файл бекапу',
+  },
+  401: {
+    type: 'object',
+    properties: { message: { type: 'string' } },
+  },
+  404: {
+    type: 'object',
+    properties: { message: { type: 'string' } },
+  },
+};
+
+// ---------------- PAGINATION RESPONSE ----------------
+export const paginatedDevicesResponseSchema = {
+  type: 'object',
+  properties: {
+    data: {
+      type: 'array',
+      items: deviceResponseSchema,
+    },
+    meta: {
+      type: 'object',
+      properties: {
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+        totalPages: { type: 'number' },
+      },
+    },
+  },
+};
