@@ -3,7 +3,7 @@ import { parse } from 'csv-parse/sync';
 import * as repository from '#repositories';
 import fs from 'fs/promises';
 import path from 'path';
-import { Readable } from 'stream';
+import { Readable, Transform } from 'stream';
 import { buildImageUrl } from '#utils/url.utils.js';
 import { fetchExternal } from '#utils/fetch.utils.js';
 import { ActiveStatusTransform } from '../transforms/activeStatus.transform.js';
@@ -101,34 +101,34 @@ export async function exportDevices(baseUrl) {
 
 // ---------------- EXPORT STREAM ----------------
 export async function exportDevicesStream(baseUrl, withTransform) {
-  const devices = await repository.findAll();
-
-  const source = Readable.from(
-    devices.map((d) => ({
-      ...d,
-      image: buildImageUrl(baseUrl, d.image),
-    })),
-  );
-
-  const csvStringifier = stringify({ header: true, delimiter: ';' });
-
+  const source = Readable.from(repository.streamAll());
+  const enrichStream = new Transform({
+    objectMode: true,
+    transform(chunk, _, callback) {
+      try {
+        callback(null, {
+          ...chunk,
+          image: buildImageUrl(baseUrl, chunk.image),
+        });
+      } catch (err) {
+        callback(err);
+      }
+    },
+  });
+  const csvStringifier = stringify({
+    header: true,
+    delimiter: ';',
+  });
   if (withTransform) {
     const transformer = new ActiveStatusTransform();
-    source.pipe(transformer).pipe(csvStringifier);
+    source.pipe(enrichStream).pipe(transformer).pipe(csvStringifier);
   } else {
-    source.pipe(csvStringifier);
+    source.pipe(enrichStream).pipe(csvStringifier);
   }
-
   return csvStringifier;
 }
 
 // ---------------- STREAM NDJSON ----------------
-
-function delay(ms) {
-  console.log(`Delaying for ${ms}ms...`);
-  return new Promise((res) => setTimeout(res, ms));
-}
-
 export async function streamDevices() {
   async function* deviceGenerator() {
     let files;
@@ -143,8 +143,6 @@ export async function streamDevices() {
     for (const file of files.sort()) {
       if (!file.endsWith('.json') || file.endsWith('.tmp.json')) continue;
       const content = await fs.readFile(path.join(ITEMS_DIR, file), 'utf8');
-
-      await delay(1000); // штучна затримка для демонстрації стрімінгу
 
       yield JSON.parse(content);
     }

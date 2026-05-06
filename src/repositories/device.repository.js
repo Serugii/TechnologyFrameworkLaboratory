@@ -31,6 +31,20 @@ export async function findById(id) {
   }
 }
 
+export async function* streamAll() {
+  await ensureDir();
+
+  const files = await fs.readdir(DIR);
+
+  for (const file of files.sort()) {
+    if (!file.endsWith('.json') || file.endsWith('.tmp.json')) continue;
+
+    const content = await fs.readFile(path.join(DIR, file), 'utf8');
+
+    yield JSON.parse(content);
+  }
+}
+
 export async function create(data) {
   await ensureDir();
 
