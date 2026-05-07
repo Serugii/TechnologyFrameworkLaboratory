@@ -1,5 +1,5 @@
 import { deviceEvents } from '../events/device.events.js';
-import * as repository from '#repositories';
+import * as repository from '../repositories/device.repository.js';
 
 export default async function deviceWsRoutes(fastify) {
   const clients = new Set();

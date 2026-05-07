@@ -115,8 +115,7 @@ export default async function deviceRoutes(fastify) {
       },
     },
     async (request, reply) => {
-      const id = parseId(request.params.id, reply);
-      if (!id) return;
+      const id = request.params.id;
 
       const data = await request.file();
       if (!data) throw { statusCode: 400, message: 'File is required' };
@@ -148,8 +147,7 @@ export default async function deviceRoutes(fastify) {
       },
     },
     async (request, reply) => {
-      const id = parseId(request.params.id, reply);
-      if (!id) return;
+      const id = request.params.id;
 
       const result = await controller.patchDevice(
         null,
@@ -175,8 +173,7 @@ export default async function deviceRoutes(fastify) {
       },
     },
     async (request, reply) => {
-      const id = parseId(request.params.id, reply);
-      if (!id) return;
+      const id = request.params.id;
 
       const result = await controller.deleteDevice(null, reply, id);
       if (!result) return reply.notFound(ERRORS.DEVICE_NOT_FOUND);
@@ -219,8 +216,7 @@ export default async function deviceRoutes(fastify) {
       },
     },
     async (request, reply) => {
-      const id = parseId(request.params.id, reply);
-      if (!id) return;
+      const id = request.params.id;
 
       const externalBaseUrl =
         fastify.config.EXTERNAL_API_URL ?? 'http://localhost:3001';

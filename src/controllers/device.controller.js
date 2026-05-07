@@ -41,14 +41,16 @@ export async function deleteDevice(req, res, id) {
   return { message: 'Deleted' };
 }
 
-export async function exportDevices(req, res) {
+export async function exportDevices(req, reply) {
   const baseUrl = `${req.protocol}://${req.headers.host}`;
   const withTransform = req.query.transform === 'true';
 
-  res.header('Content-Disposition', 'attachment; filename="items.csv"');
-  res.header('Content-Type', 'text/csv');
+  reply.header('Content-Disposition', 'attachment; filename="devices.csv"');
+  reply.header('Content-Type', 'text/csv');
 
-  return service.exportDevicesStream(baseUrl, withTransform);
+  const stream = await service.exportDevicesStream(baseUrl, withTransform);
+
+  return reply.send(stream);
 }
 
 export async function streamDevices(req, reply) {

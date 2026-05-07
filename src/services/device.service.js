@@ -1,14 +1,11 @@
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
-import * as repository from '#repositories';
-import fs from 'fs/promises';
+import * as repository from '../repositories/device.repository.js';
 import path from 'path';
 import { Readable, Transform } from 'stream';
 import { buildImageUrl } from '#utils/url.utils.js';
 import { fetchExternal } from '#utils/fetch.utils.js';
 import { ActiveStatusTransform } from '../transforms/activeStatus.transform.js';
-
-const ITEMS_DIR = path.join(process.cwd(), 'data', 'items');
 
 export async function importDevices(buffer, filename, mimetype, validate) {
   let items = [];
@@ -101,54 +98,35 @@ export async function exportDevices(baseUrl) {
 
 // ---------------- EXPORT STREAM ----------------
 export async function exportDevicesStream(baseUrl, withTransform) {
-  const source = Readable.from(repository.streamAll());
+  const source = repository.streamAll();
+
   const enrichStream = new Transform({
     objectMode: true,
     transform(chunk, _, callback) {
-      try {
-        callback(null, {
-          ...chunk,
-          image: buildImageUrl(baseUrl, chunk.image),
-        });
-      } catch (err) {
-        callback(err);
-      }
+      callback(null, {
+        ...chunk,
+        image: buildImageUrl(baseUrl, chunk.image),
+      });
     },
   });
+
   const csvStringifier = stringify({
     header: true,
     delimiter: ';',
   });
+
+  let stream = source.pipe(enrichStream);
+
   if (withTransform) {
-    const transformer = new ActiveStatusTransform();
-    source.pipe(enrichStream).pipe(transformer).pipe(csvStringifier);
-  } else {
-    source.pipe(enrichStream).pipe(csvStringifier);
+    stream = stream.pipe(new ActiveStatusTransform());
   }
-  return csvStringifier;
+
+  return stream.pipe(csvStringifier);
 }
 
 // ---------------- STREAM NDJSON ----------------
 export async function streamDevices() {
-  async function* deviceGenerator() {
-    let files;
-
-    try {
-      files = await fs.readdir(ITEMS_DIR);
-    } catch (error) {
-      if (error.code === 'ENOENT') return;
-      throw error;
-    }
-
-    for (const file of files.sort()) {
-      if (!file.endsWith('.json') || file.endsWith('.tmp.json')) continue;
-      const content = await fs.readFile(path.join(ITEMS_DIR, file), 'utf8');
-
-      yield JSON.parse(content);
-    }
-  }
-
-  return Readable.from(deviceGenerator());
+  return Readable.from(repository.streamAll());
 }
 
 export async function getDeviceById(id) {

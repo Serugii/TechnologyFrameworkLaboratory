@@ -8,21 +8,15 @@ const DEVICES = [
   { device: 'TV', status: 'on', room: 'Living Room' },
 ];
 
-const seed = async () => {
+const seedForce = async () => {
   try {
     // eslint-disable-next-line no-restricted-properties
     await mongoose.connect(`${process.env.MONGO_URL}/${process.env.MONGO_DB_NAME}`);
 
-    const count = await DeviceModel.countDocuments();
-
-    if (count > 0) {
-      console.log('Database already seeded');
-      process.exit(0);
-    }
-
+    await DeviceModel.deleteMany({});
     await DeviceModel.insertMany(DEVICES);
 
-    console.log('Seeding completed');
+    console.log('Force seeding completed');
 
     process.exit(0);
   } catch (error) {
@@ -31,4 +25,4 @@ const seed = async () => {
   }
 };
 
-seed();
+seedForce();

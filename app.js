@@ -20,6 +20,7 @@ import backupRoutes from './src/routes/device.backup.routes.js';
 import { envSchema } from '#schemas';
 import { createBackup } from '#utils/backup.utils.js';
 import { checkMigrationNeeded } from '#utils/migration.utils.js';
+import mongoPlugin from './src/db/mongo.js';
 
 // ---------------- LOGGER CONFIG ----------------
 // eslint-disable-next-line no-restricted-properties
@@ -49,6 +50,9 @@ await fastify.register(fastifyEnv, {
   schema: envSchema,
   dotenv: true,
 });
+
+// ---------------- DATABASE ----------------
+await fastify.register(mongoPlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {

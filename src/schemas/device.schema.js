@@ -36,7 +36,7 @@ export const deviceResponseSchema = {
     'updatedAt',
   ],
   properties: {
-    id: { type: 'number' },
+    id: { type: 'string' },
     ...deviceFields,
     createdAt: { type: 'string' },
     updatedAt: { type: 'string' },
@@ -48,7 +48,7 @@ export const deviceParamsSchema = {
   type: 'object',
   required: ['id'],
   properties: {
-    id: { type: 'number' },
+    id: { type: 'string' },
   },
 };
 
@@ -91,13 +91,22 @@ export const deviceDeleteResponseSchema = {
 // ---------------- ENV ----------------
 export const envSchema = {
   type: 'object',
-  required: ['PORT', 'HOSTNAME', 'NODE_ENV', 'ADMIN_API_KEY'],
+  required: [
+    'PORT',
+    'HOSTNAME',
+    'NODE_ENV',
+    'ADMIN_API_KEY',
+    'MONGO_URL',
+    'MONGO_DB_NAME',
+  ],
   properties: {
     PORT: { type: 'number' },
     HOSTNAME: { type: 'string' },
     NODE_ENV: { type: 'string', enum: ['development', 'production'] },
     ADMIN_API_KEY: { type: 'string' },
     GITHUB_TOKEN: { type: 'string', default: '' },
+    MONGO_URL: { type: 'string', minLength: 1 },
+    MONGO_DB_NAME: { type: 'string', minLength: 1 },
   },
 };
 
