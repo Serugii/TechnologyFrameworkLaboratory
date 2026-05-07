@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1778127849959,
+      "tag": "0000_groovy_talon",
+      "breakpoints": true
+    }
+  ]
+}

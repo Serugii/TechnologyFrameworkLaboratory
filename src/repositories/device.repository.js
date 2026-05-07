@@ -1,4 +1,6 @@
 import { createItemModel } from '#models';
+import { devices } from '../db/schema.js';
+import { eq, sql } from 'drizzle-orm';
 
 function rowToModel(row) {
   return createItemModel({
@@ -19,37 +21,40 @@ function rowToModel(row) {
   });
 }
 
-export function createRepository(pool) {
+export function createRepository(db) {
   return {
     async findAll(filters = {}) {
-      let sql = 'SELECT * FROM devices';
-      const params = [];
       const conditions = [];
 
       if (filters.room) {
-        conditions.push('LOWER(room) = LOWER(?)');
-        params.push(filters.room);
+        conditions.push(sql`LOWER(${devices.room}) = LOWER(${filters.room})`);
       }
       if (filters.status) {
-        conditions.push('status = ?');
-        params.push(filters.status);
+        conditions.push(eq(devices.status, filters.status));
       }
-      if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
-      sql += ' ORDER BY id ASC';
 
-      const [rows] = await pool.query(sql, params);
+      const rows = await db
+        .select()
+        .from(devices)
+        .where(
+          conditions.length
+            ? sql`${conditions[0]}${conditions[1] ? sql` AND ${conditions[1]}` : sql``}`
+            : undefined,
+        )
+        .orderBy(devices.id);
+
       return rows.map(rowToModel);
     },
 
     async findById(id) {
-      const [rows] = await pool.query('SELECT * FROM devices WHERE id = ?', [
-        id,
-      ]);
+      const rows = await db.select().from(devices).where(eq(devices.id, id));
+
       return rows.length ? rowToModel(rows[0]) : null;
     },
 
     async *streamAll() {
-      const [rows] = await pool.query('SELECT * FROM devices ORDER BY id ASC');
+      const rows = await db.select().from(devices).orderBy(devices.id);
+
       for (const row of rows) yield rowToModel(row);
     },
 
@@ -61,11 +66,11 @@ export function createRepository(pool) {
         description = '',
         image = null,
       } = data;
-      const [result] = await pool.query(
-        `INSERT INTO devices (device, room, status, description, image)
-         VALUES (?, ?, ?, ?, ?)`,
-        [device, room, status, description, image],
-      );
+
+      const [result] = await db
+        .insert(devices)
+        .values({ device, room, status, description, image });
+
       return this.findById(result.insertId);
     },
 
@@ -73,30 +78,22 @@ export function createRepository(pool) {
       const existing = await this.findById(id);
       if (!existing) return null;
 
-      const fields = ['device', 'room', 'status', 'description', 'image'];
-      const setClauses = [];
-      const params = [];
-
-      for (const field of fields) {
-        if (updates[field] !== undefined) {
-          setClauses.push(`${field} = ?`);
-          params.push(updates[field]);
-        }
+      const allowed = ['device', 'room', 'status', 'description', 'image'];
+      const values = {};
+      for (const field of allowed) {
+        if (updates[field] !== undefined) values[field] = updates[field];
       }
-      if (setClauses.length === 0) return existing;
 
-      params.push(id);
-      await pool.query(
-        `UPDATE devices SET ${setClauses.join(', ')} WHERE id = ?`,
-        params,
-      );
+      if (Object.keys(values).length === 0) return existing;
+
+      await db.update(devices).set(values).where(eq(devices.id, id));
+
       return this.findById(id);
     },
 
     async remove(id) {
-      const [result] = await pool.query('DELETE FROM devices WHERE id = ?', [
-        id,
-      ]);
+      const [result] = await db.delete(devices).where(eq(devices.id, id));
+
       return result.affectedRows > 0;
     },
 
@@ -105,13 +102,17 @@ export function createRepository(pool) {
     },
 
     async findPaginated(offset, limit) {
-      const [rows] = await pool.query(
-        'SELECT * FROM devices ORDER BY id ASC LIMIT ? OFFSET ?',
-        [limit, offset],
-      );
-      const [[{ total }]] = await pool.query(
-        'SELECT COUNT(*) as total FROM devices',
-      );
+      const rows = await db
+        .select()
+        .from(devices)
+        .orderBy(devices.id)
+        .limit(limit)
+        .offset(offset);
+
+      const [{ total }] = await db
+        .select({ total: sql`COUNT(*)`.mapWith(Number) })
+        .from(devices);
+
       return { items: rows.map(rowToModel), total };
     },
   };

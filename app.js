@@ -11,6 +11,7 @@ import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import websocket from '@fastify/websocket';
 import mysqlPlugin from './src/db/mysql.js';
+import drizzlePlugin from './src/db/drizzle.js';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
@@ -20,7 +21,6 @@ import deviceWsRoutes from './src/routes/device.ws.routes.js';
 import backupRoutes from './src/routes/device.backup.routes.js';
 import { envSchema } from '#schemas';
 import { createBackup } from '#utils/backup.utils.js';
-import { checkMigrationNeeded } from '#utils/migration.utils.js';
 
 // ---------------- LOGGER CONFIG ----------------
 // eslint-disable-next-line no-restricted-properties
@@ -52,6 +52,7 @@ await fastify.register(fastifyEnv, {
 });
 
 await fastify.register(mysqlPlugin);
+await fastify.register(drizzlePlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {
@@ -180,7 +181,6 @@ fastify.setErrorHandler((error, request, reply) => {
 
 // ---------------- STARTUP ----------------
 await createBackup(fastify.mysql);
-await checkMigrationNeeded(fastify);
 
 try {
   await fastify.listen({
