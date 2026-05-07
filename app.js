@@ -10,6 +10,7 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import websocket from '@fastify/websocket';
+import mysqlPlugin from './src/db/mysql.js';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
@@ -49,6 +50,8 @@ await fastify.register(fastifyEnv, {
   schema: envSchema,
   dotenv: true,
 });
+
+await fastify.register(mysqlPlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {
@@ -176,7 +179,7 @@ fastify.setErrorHandler((error, request, reply) => {
 });
 
 // ---------------- STARTUP ----------------
-await createBackup();
+await createBackup(fastify.mysql);
 await checkMigrationNeeded(fastify);
 
 try {

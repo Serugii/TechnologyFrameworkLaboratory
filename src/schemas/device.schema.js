@@ -91,13 +91,28 @@ export const deviceDeleteResponseSchema = {
 // ---------------- ENV ----------------
 export const envSchema = {
   type: 'object',
-  required: ['PORT', 'HOSTNAME', 'NODE_ENV', 'ADMIN_API_KEY'],
+  required: [
+    'PORT',
+    'HOSTNAME',
+    'NODE_ENV',
+    'ADMIN_API_KEY',
+    'MYSQL_HOST',
+    'MYSQL_PORT',
+    'MYSQL_USER',
+    'MYSQL_PASSWORD',
+    'MYSQL_DB',
+  ],
   properties: {
     PORT: { type: 'number' },
     HOSTNAME: { type: 'string' },
     NODE_ENV: { type: 'string', enum: ['development', 'production'] },
     ADMIN_API_KEY: { type: 'string' },
     GITHUB_TOKEN: { type: 'string', default: '' },
+    MYSQL_HOST: { type: 'string' },
+    MYSQL_PORT: { type: 'number' },
+    MYSQL_USER: { type: 'string' },
+    MYSQL_PASSWORD: { type: 'string' },
+    MYSQL_DB: { type: 'string' },
   },
 };
 

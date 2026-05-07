@@ -1,6 +1,5 @@
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
-import * as repository from '#repositories';
 import fs from 'fs/promises';
 import path from 'path';
 import { Readable, Transform } from 'stream';
@@ -8,7 +7,10 @@ import { buildImageUrl } from '#utils/url.utils.js';
 import { fetchExternal } from '#utils/fetch.utils.js';
 import { ActiveStatusTransform } from '../transforms/activeStatus.transform.js';
 
-const ITEMS_DIR = path.join(process.cwd(), 'data', 'items');
+let repository;
+export function setRepository(repo) {
+  repository = repo;
+}
 
 export async function importDevices(buffer, filename, mimetype, validate) {
   let items = [];
@@ -56,14 +58,8 @@ export async function importDevices(buffer, filename, mimetype, validate) {
   return result;
 }
 
-export async function listDevices(room) {
-  let devices = await repository.findAll();
-  if (room) {
-    devices = devices.filter(
-      (d) => d.room.toLowerCase() === room.toLowerCase(),
-    );
-  }
-  return devices;
+export async function listDevices(room, status) {
+  return repository.findAll({ room, status });
 }
 
 export async function createDevice(data) {
@@ -130,25 +126,7 @@ export async function exportDevicesStream(baseUrl, withTransform) {
 
 // ---------------- STREAM NDJSON ----------------
 export async function streamDevices() {
-  async function* deviceGenerator() {
-    let files;
-
-    try {
-      files = await fs.readdir(ITEMS_DIR);
-    } catch (error) {
-      if (error.code === 'ENOENT') return;
-      throw error;
-    }
-
-    for (const file of files.sort()) {
-      if (!file.endsWith('.json') || file.endsWith('.tmp.json')) continue;
-      const content = await fs.readFile(path.join(ITEMS_DIR, file), 'utf8');
-
-      yield JSON.parse(content);
-    }
-  }
-
-  return Readable.from(deviceGenerator());
+  return Readable.from(repository.streamAll());
 }
 
 export async function getDeviceById(id) {

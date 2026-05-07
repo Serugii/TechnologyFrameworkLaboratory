@@ -1,28 +1,41 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getModelHash } from '#utils/hash.utils.js';
+import crypto from 'crypto';
 
-const VERSION_FILE = path.resolve('data/version.json');
+const SCHEMA_FILE = path.resolve('src/db/schema.sql');
+
+const getSchemaHash = async () => {
+  const content = await fs.readFile(SCHEMA_FILE, 'utf8');
+  return crypto.createHash('md5').update(content).digest('hex');
+};
 
 export const checkMigrationNeeded = async (fastify) => {
   try {
-    const content = await fs.readFile(VERSION_FILE, 'utf8');
-    const version = JSON.parse(content);
+    const currentHash = await getSchemaHash();
 
-    const currentHash = getModelHash();
+    const [rows] = await fastify.mysql.query(
+      'SELECT schema_hash FROM migrations ORDER BY id DESC LIMIT 1',
+    );
 
-    if (version.hash !== currentHash) {
-      fastify.log.warn(
-        'Data schema changed. Run "npm run migrate" to update existing files.',
+    if (rows.length === 0) {
+      await fastify.mysql.query(
+        'INSERT INTO migrations (schema_hash) VALUES (?)',
+        [currentHash],
       );
+      fastify.log.info('Migration initialized. Schema hash saved.');
+      return;
     }
-  } catch (e) {
-    if (e.code === 'ENOENT') {
+
+    const savedHash = rows[0].schema_hash;
+
+    if (savedHash !== currentHash) {
       fastify.log.warn(
-        'No version file found. Run "npm run migrate" to initialize schema.',
+        'DB schema changed. Run "npm run migrate" to apply changes.',
       );
     } else {
-      fastify.log.error(e);
+      fastify.log.info('DB schema is up to date.');
     }
+  } catch (err) {
+    fastify.log.error('Migration check failed: ' + err.message);
   }
 };
