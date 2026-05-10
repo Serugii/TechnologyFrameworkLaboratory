@@ -101,6 +101,8 @@ export const envSchema = {
     'MYSQL_USER',
     'MYSQL_PASSWORD',
     'MYSQL_DB',
+    'REDIS_HOST',
+    'REDIS_PORT',
   ],
   properties: {
     PORT: { type: 'number' },
@@ -113,6 +115,8 @@ export const envSchema = {
     MYSQL_USER: { type: 'string' },
     MYSQL_PASSWORD: { type: 'string' },
     MYSQL_DB: { type: 'string' },
+    REDIS_HOST: { type: 'string' },
+    REDIS_PORT: { type: 'number' },
   },
 };
 

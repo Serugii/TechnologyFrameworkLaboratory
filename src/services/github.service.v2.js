@@ -7,6 +7,8 @@
  * - Менше round-trips до API завдяки GraphQL batching
  */
 
+import { REDIS_KEYS, REDIS_TTL } from '../constants/redis.js';
+
 const GITHUB_REST = 'https://api.github.com';
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
 const MAX_CONTRIBUTORS = 100;
@@ -138,54 +140,80 @@ async function getBatchUserReposGql(logins, token) {
   return result;
 }
 
-export async function findSharedReposV2(repoPath, token) {
-  const [owner, repo] = repoPath.split('/');
-
-  const contributors = await getContributorsGql(owner, repo, token);
-  if (contributors.length === 0) {
-    throw {
-      statusCode: 404,
-      message: `Repository "${repoPath}" not found or has no contributors`,
-    };
-  }
-
-  const repoScores = new Map();
-  const BATCH = 5;
-
-  for (let i = 0; i < contributors.length; i += BATCH) {
-    const batch = contributors.slice(i, i + BATCH);
-    const userReposMap = await getBatchUserReposGql(batch, token);
-
-    userReposMap.forEach((repos) => {
-      repos.forEach((fullName) => {
-        if (fullName.toLowerCase() === repoPath.toLowerCase()) return;
-        repoScores.set(fullName, (repoScores.get(fullName) ?? 0) + 1);
-      });
-    });
-  }
-
-  const sorted = [...repoScores.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_N);
-
-  const enriched = await Promise.all(
-    sorted.map(async ([fullName, sharedCount], idx) => {
-      const meta = await restFetch(`${GITHUB_REST}/repos/${fullName}`, token);
-      return {
-        rank: idx + 1,
-        repo: fullName,
-        url: meta?.html_url ?? `https://github.com/${fullName}`,
-        sharedContributors: sharedCount,
-        stars: meta?.stargazers_count ?? 0,
-        description: meta?.description ?? null,
-      };
-    }),
-  );
-
+// ---------------- ФАБРИЧНА ФУНКЦІЯ (Dependency Injection) ----------------
+export function createGithubServiceV2({ redis }) {
   return {
-    sourceRepo: repoPath,
-    totalContributorsAnalyzed: contributors.length,
-    top5: enriched,
-    meta: { apiVersion: 'v2 (REST + GraphQL)' },
+    async findSharedRepos(repoPath, token) {
+      const cacheKey = REDIS_KEYS.GITHUB_SHARED_REPOS(repoPath, 'v2');
+
+      const cached = await redis.get(cacheKey);
+      if (cached !== null) {
+        const result = JSON.parse(cached);
+        result.meta.fromCache = true;
+        return result;
+      }
+
+      const [owner, repo] = repoPath.split('/');
+
+      const contributors = await getContributorsGql(owner, repo, token);
+      if (contributors.length === 0) {
+        throw {
+          statusCode: 404,
+          message: `Repository "${repoPath}" not found or has no contributors`,
+        };
+      }
+
+      const repoScores = new Map();
+      const BATCH = 5;
+
+      for (let i = 0; i < contributors.length; i += BATCH) {
+        const batch = contributors.slice(i, i + BATCH);
+        const userReposMap = await getBatchUserReposGql(batch, token);
+
+        userReposMap.forEach((repos) => {
+          repos.forEach((fullName) => {
+            if (fullName.toLowerCase() === repoPath.toLowerCase()) return;
+            repoScores.set(fullName, (repoScores.get(fullName) ?? 0) + 1);
+          });
+        });
+      }
+
+      const sorted = [...repoScores.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP_N);
+
+      const enriched = await Promise.all(
+        sorted.map(async ([fullName, sharedCount], idx) => {
+          const meta = await restFetch(
+            `${GITHUB_REST}/repos/${fullName}`,
+            token,
+          );
+          return {
+            rank: idx + 1,
+            repo: fullName,
+            url: meta?.html_url ?? `https://github.com/${fullName}`,
+            sharedContributors: sharedCount,
+            stars: meta?.stargazers_count ?? 0,
+            description: meta?.description ?? null,
+          };
+        }),
+      );
+
+      const result = {
+        sourceRepo: repoPath,
+        totalContributorsAnalyzed: contributors.length,
+        top5: enriched,
+        meta: { apiVersion: 'v2 (REST + GraphQL)', fromCache: false },
+      };
+
+      await redis.set(
+        cacheKey,
+        JSON.stringify(result),
+        'EX',
+        REDIS_TTL.GITHUB_CACHE,
+      );
+
+      return result;
+    },
   };
 }

@@ -6,6 +6,8 @@
  * 4. Повернути топ-5
  */
 
+import { REDIS_KEYS, REDIS_TTL } from '../constants/redis.js';
+
 const GITHUB_API = 'https://api.github.com';
 const MAX_CONTRIBUTORS = 100;
 const MAX_REPOS_PER_USER = 100;
@@ -54,60 +56,83 @@ async function getUserRepos(login, token) {
   return data.map((r) => r.full_name);
 }
 
-export async function findSharedReposV1(repoPath, token) {
-  const [owner, repo] = repoPath.split('/');
-
-  const contributors = await getContributors(owner, repo, token);
-  if (contributors.length === 0) {
-    throw {
-      statusCode: 404,
-      message: `Repository "${repoPath}" not found or has no contributors`,
-    };
-  }
-
-  const repoScores = new Map();
-
-  const BATCH = 10;
-  for (let i = 0; i < contributors.length; i += BATCH) {
-    const batch = contributors.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.map((login) => getUserRepos(login, token)),
-    );
-
-    results.forEach((repos) => {
-      repos.forEach((fullName) => {
-        if (fullName.toLowerCase() === repoPath.toLowerCase()) return;
-        repoScores.set(fullName, (repoScores.get(fullName) ?? 0) + 1);
-      });
-    });
-  }
-
-  const sorted = [...repoScores.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_N);
-
-  const enriched = await Promise.all(
-    sorted.map(async ([fullName, sharedCount], idx) => {
-      const [rOwner, rRepo] = fullName.split('/');
-      const meta = await ghFetch(
-        `${GITHUB_API}/repos/${rOwner}/${rRepo}`,
-        token,
-      );
-      return {
-        rank: idx + 1,
-        repo: fullName,
-        url: meta?.html_url ?? `https://github.com/${fullName}`,
-        sharedContributors: sharedCount,
-        stars: meta?.stargazers_count ?? 0,
-        description: meta?.description ?? null,
-      };
-    }),
-  );
-
+// ---------------- ФАБРИЧНА ФУНКЦІЯ (Dependency Injection) ----------------
+export function createGithubServiceV1({ redis }) {
   return {
-    sourceRepo: repoPath,
-    totalContributorsAnalyzed: contributors.length,
-    top5: enriched,
-    meta: { apiVersion: 'v1 (REST only)' },
+    async findSharedRepos(repoPath, token) {
+      const cacheKey = REDIS_KEYS.GITHUB_SHARED_REPOS(repoPath, 'v1');
+
+      const cached = await redis.get(cacheKey);
+      if (cached !== null) {
+        const result = JSON.parse(cached);
+        result.meta.fromCache = true;
+        return result;
+      }
+
+      const [owner, repo] = repoPath.split('/');
+
+      const contributors = await getContributors(owner, repo, token);
+      if (contributors.length === 0) {
+        throw {
+          statusCode: 404,
+          message: `Repository "${repoPath}" not found or has no contributors`,
+        };
+      }
+
+      const repoScores = new Map();
+
+      const BATCH = 10;
+      for (let i = 0; i < contributors.length; i += BATCH) {
+        const batch = contributors.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map((login) => getUserRepos(login, token)),
+        );
+
+        results.forEach((repos) => {
+          repos.forEach((fullName) => {
+            if (fullName.toLowerCase() === repoPath.toLowerCase()) return;
+            repoScores.set(fullName, (repoScores.get(fullName) ?? 0) + 1);
+          });
+        });
+      }
+
+      const sorted = [...repoScores.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP_N);
+
+      const enriched = await Promise.all(
+        sorted.map(async ([fullName, sharedCount], idx) => {
+          const [rOwner, rRepo] = fullName.split('/');
+          const meta = await ghFetch(
+            `${GITHUB_API}/repos/${rOwner}/${rRepo}`,
+            token,
+          );
+          return {
+            rank: idx + 1,
+            repo: fullName,
+            url: meta?.html_url ?? `https://github.com/${fullName}`,
+            sharedContributors: sharedCount,
+            stars: meta?.stargazers_count ?? 0,
+            description: meta?.description ?? null,
+          };
+        }),
+      );
+
+      const result = {
+        sourceRepo: repoPath,
+        totalContributorsAnalyzed: contributors.length,
+        top5: enriched,
+        meta: { apiVersion: 'v1 (REST only)', fromCache: false },
+      };
+
+      await redis.set(
+        cacheKey,
+        JSON.stringify(result),
+        'EX',
+        REDIS_TTL.GITHUB_CACHE,
+      );
+
+      return result;
+    },
   };
 }

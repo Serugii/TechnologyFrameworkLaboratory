@@ -40,6 +40,7 @@ export const githubResponseSchema = {
       properties: {
         apiVersion: { type: 'string' },
         durationMs: { type: 'number' },
+        fromCache: { type: 'boolean' },
       },
     },
   },

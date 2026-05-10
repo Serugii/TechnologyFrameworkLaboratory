@@ -12,6 +12,7 @@ import swaggerUI from '@fastify/swagger-ui';
 import websocket from '@fastify/websocket';
 import mysqlPlugin from './src/db/mysql.js';
 import drizzlePlugin from './src/db/drizzle.js';
+import redisPlugin from './src/db/redis.js';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
@@ -53,6 +54,7 @@ await fastify.register(fastifyEnv, {
 
 await fastify.register(mysqlPlugin);
 await fastify.register(drizzlePlugin);
+await fastify.register(redisPlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {
@@ -107,6 +109,7 @@ await fastify.register(multipart, {
 await fastify.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute',
+  redis: fastify.redis,
   errorResponseBuilder: (request, context) => {
     return {
       statusCode: 429,

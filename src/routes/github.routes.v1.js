@@ -1,10 +1,13 @@
-import { findSharedReposV1 } from '../services/github.service.v1.js';
+import { createGithubServiceV1 } from '../services/github.service.v1.js';
 import {
   githubQuerySchema,
   githubResponseSchema,
 } from '../schemas/github.schema.js';
 
 export default async function githubRoutesV1(fastify) {
+  // Dependency Injection: передаємо redis через фабричну функцію
+  const githubService = createGithubServiceV1({ redis: fastify.redis });
+
   fastify.get(
     '/github/shared-repos',
     {
@@ -22,7 +25,7 @@ export default async function githubRoutesV1(fastify) {
       const token = fastify.config.GITHUB_TOKEN ?? null;
 
       const start = Date.now();
-      const result = await findSharedReposV1(repo, token);
+      const result = await githubService.findSharedRepos(repo, token);
       result.meta.durationMs = Date.now() - start;
 
       return reply.code(200).send(result);

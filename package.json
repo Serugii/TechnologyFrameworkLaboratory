@@ -13,7 +13,8 @@
     "#routes": "./src/routes/device.routes.js",
     "#utils/*": "./src/utils/*",
     "#transforms/*": "./src/transforms/*",
-    "#events": "./src/events/device.events.js"
+    "#events": "./src/events/device.events.js",
+    "#constants/redis": "./src/constants/redis.js"
   },
   "scripts": {
     "start": "node --env-file=.env app.js",
@@ -26,7 +27,7 @@
     "check": "npm run lint && npm run format:check",
     "seed": "node --env-file=.env src/scripts/seed.js",
     "seed:force": "node --env-file=.env src/scripts/seed.js --force",
-    "migrate": "node --env-file=.env src/migrations/migrate.js",
+    "migrate": "node --env-file=.env src/scripts/migrate.js",
     "external": "json-server db.json --port 3001",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
@@ -58,6 +59,7 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
+    "@fastify/redis": "^7.2.0",
     "@fastify/sensible": "^6.0.4",
     "@fastify/static": "^9.0.0",
     "@fastify/swagger": "^9.7.0",

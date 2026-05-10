@@ -4,6 +4,7 @@ import {
   varchar,
   mysqlEnum,
   datetime,
+  text,
 } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 
@@ -21,4 +22,10 @@ export const devices = mysqlTable('devices', {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`)
     .$onUpdateFn(() => new Date()),
+});
+
+export const users = mysqlTable('users', {
+  id: int('id').primaryKey().autoincrement(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: text('password').notNull(),
 });
