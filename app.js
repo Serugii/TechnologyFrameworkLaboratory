@@ -13,6 +13,7 @@ import websocket from '@fastify/websocket';
 import mysqlPlugin from './src/db/mysql.js';
 import drizzlePlugin from './src/db/drizzle.js';
 import redisPlugin from './src/db/redis.js';
+import sessionPlugin from './src/plugins/session.plugin.js';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
@@ -20,6 +21,7 @@ import githubRoutesV1 from './src/routes/github.routes.v1.js';
 import githubRoutesV2 from './src/routes/github.routes.v2.js';
 import deviceWsRoutes from './src/routes/device.ws.routes.js';
 import backupRoutes from './src/routes/device.backup.routes.js';
+import authRoutes from './src/routes/auth.routes.js';
 import { envSchema } from '#schemas';
 import { createBackup } from '#utils/backup.utils.js';
 
@@ -55,6 +57,7 @@ await fastify.register(fastifyEnv, {
 await fastify.register(mysqlPlugin);
 await fastify.register(drizzlePlugin);
 await fastify.register(redisPlugin);
+await fastify.register(sessionPlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {
@@ -160,6 +163,10 @@ await fastify.register(deviceWsRoutes, {
 });
 
 await fastify.register(backupRoutes, {
+  prefix: '/api/v1',
+});
+
+await fastify.register(authRoutes, {
   prefix: '/api/v1',
 });
 
