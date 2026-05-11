@@ -13,6 +13,9 @@ import websocket from '@fastify/websocket';
 import mysqlPlugin from './src/db/mysql.js';
 import drizzlePlugin from './src/db/drizzle.js';
 import redisPlugin from './src/db/redis.js';
+import jwtPlugin from './src/plugins/jwt.js';
+import cookiePlugin from './src/plugins/cookie.js';
+import authRoutes from './src/routes/auth.routes.js';
 
 import deviceRoutes from '#routes';
 import deviceRoutesV2 from './src/routes/device.routes.v2.js';
@@ -55,6 +58,8 @@ await fastify.register(fastifyEnv, {
 await fastify.register(mysqlPlugin);
 await fastify.register(drizzlePlugin);
 await fastify.register(redisPlugin);
+await fastify.register(cookiePlugin);
+await fastify.register(jwtPlugin);
 
 // ---------------- HOOKS ----------------
 if (isDev) {
@@ -126,6 +131,16 @@ await fastify.register(swagger, {
       description: 'API для керування smart devices',
       version: '1.0.0',
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Введіть access token отриманий після POST /auth/login',
+        },
+      },
+    },
   },
 });
 
@@ -161,6 +176,16 @@ await fastify.register(deviceWsRoutes, {
 
 await fastify.register(backupRoutes, {
   prefix: '/api/v1',
+});
+
+await fastify.register(authRoutes, {
+  prefix: '/auth',
+});
+
+fastify.get('/test-jwt', async (request, reply) => {
+  const token = fastify.jwt.sign({ sub: 1, email: 'test@test.com' });
+  const decoded = fastify.jwt.decode(token);
+  return { token, decoded };
 });
 
 await fastify.register(fastifyStatic, {

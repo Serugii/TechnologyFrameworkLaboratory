@@ -11,6 +11,7 @@ import {
   deviceDeleteResponseSchema,
   paginationQuerySchema,
 } from '#schemas';
+import { bearerSecurity } from '../schemas/auth.schema.js';
 
 const parseId = (id, reply) => {
   const num = Number(id);
@@ -30,11 +31,19 @@ export default async function deviceRoutes(fastify) {
 
   // ---------------- AUTH HOOK ----------------
   fastify.addHook('onRequest', async (request, reply) => {
-    if (request.url.startsWith('/health/details')) {
+    if (request.url.startsWith('/api/v1/health/details')) {
       const apiKey = request.headers['x-api-key'];
       if (!apiKey || apiKey !== fastify.config.ADMIN_API_KEY) {
-        return reply.unauthorized(ERRORS.UNAUTHORIZED);
+        return reply.unauthorized('Unauthorized');
       }
+    }
+
+    const protectedMethods = ['POST', 'PATCH', 'DELETE'];
+    if (
+      protectedMethods.includes(request.method) &&
+      request.url.startsWith('/api/v1/devices')
+    ) {
+      await request.jwtVerify();
     }
   });
 
@@ -82,6 +91,7 @@ export default async function deviceRoutes(fastify) {
         summary: 'Створення нового пристрою',
         description: 'Додавання нового пристрою до системи',
         tags: ['Devices'],
+        security: bearerSecurity,
         body: deviceBodySchema,
         response: { 201: deviceCreateResponseSchema },
       },
@@ -142,6 +152,7 @@ export default async function deviceRoutes(fastify) {
         summary: 'Оновлення пристрою',
         description: 'Оновлення інформації про конкретний пристрій',
         tags: ['Devices'],
+        security: bearerSecurity,
         params: deviceParamsSchema,
         body: deviceUpdateSchema,
         response: { 200: devicePatchResponseSchema },
@@ -170,6 +181,7 @@ export default async function deviceRoutes(fastify) {
         summary: 'Видалення пристрою',
         description: 'Видалення конкретного пристрою з системи',
         tags: ['Devices'],
+        security: bearerSecurity,
         params: deviceParamsSchema,
         response: { 204: { type: 'null' } },
       },
