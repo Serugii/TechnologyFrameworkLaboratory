@@ -1,0 +1,43 @@
+# Залежності
+node_modules/
+
+# Тести та покриття
+**/*.test.js
+**/*.spec.js
+src/tests/
+coverage/
+
+# Середовище та секрети
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Документація
+*.md
+docs/
+
+# Логи
+logs/
+*.log
+
+# Docker файли
+Dockerfile
+.dockerignore
+
+# Інструменти розробки
+.eslintrc*
+.eslintignore
+.prettierrc*
+.prettierignore
+eslint.config.mjs
+
+# Дані та бекапи
+data/
+
+# Тимчасові файли
+*.tmp
+*.swp

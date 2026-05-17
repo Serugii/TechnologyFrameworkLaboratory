@@ -108,7 +108,7 @@ export const envSchema = {
   properties: {
     PORT: { type: 'number' },
     HOSTNAME: { type: 'string' },
-    NODE_ENV: { type: 'string', enum: ['development', 'production'] },
+    NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] },
     ADMIN_API_KEY: { type: 'string' },
     GITHUB_TOKEN: { type: 'string', default: '' },
     MYSQL_HOST: { type: 'string' },

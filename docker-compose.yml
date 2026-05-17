@@ -1,0 +1,70 @@
+services:
+  app:
+    build:
+      context: .
+      target: production
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-mysecretkey}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-qwerty123}
+      MYSQL_DB: ${MYSQL_DB:-smart_home_devices}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_SECRET: ${SESSION_SECRET:-4dR5m1T9;ozIY+LJ_I2t&+Opb=Gp;04A}
+      EXTERNAL_API_URL: ${EXTERNAL_API_URL:-http://localhost:3001}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-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}
+    command: sh -c "node src/scripts/migrate.js && node app.js"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-qwerty123}
+      MYSQL_DATABASE: ${MYSQL_DB:-smart_home_devices}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-u',
+          'root',
+          '-p${MYSQL_PASSWORD:-qwerty123}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:

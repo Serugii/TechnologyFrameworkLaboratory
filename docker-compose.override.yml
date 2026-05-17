@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      target: builder
+    command: node --watch app.js
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./src:/app/src
+      - ./app.js:/app/app.js
+    ports:
+      - '${PORT:-3000}:3000'
+
+  mysql:
+    ports:
+      - '3307:3306'
+
+  redis:
+    ports:
+      - '6380:6379'

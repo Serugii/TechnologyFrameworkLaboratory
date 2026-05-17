@@ -18,6 +18,11 @@ async function mysqlPlugin(fastify) {
     fastify.log.info('MySQL connected');
   } catch (err) {
     fastify.log.error('MySQL connection failed: ' + err.message);
+    /* eslint-disable no-restricted-properties */
+    if (process.env.NODE_ENV === 'test') {
+      /* eslint-enable no-restricted-properties */
+      throw new Error('MySQL connection failed: ' + err.message);
+    }
     process.exit(1);
   }
 

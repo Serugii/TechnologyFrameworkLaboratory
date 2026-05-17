@@ -210,7 +210,8 @@ export default async function deviceRoutes(fastify) {
       {
         schema: {
           summary: 'Завантаження зображення для пристрою',
-          description: 'Дозволяє завантажити зображення для конкретного пристрою',
+          description:
+            'Дозволяє завантажити зображення для конкретного пристрою',
           tags: ['Devices'],
           params: deviceParamsSchema,
           consumes: ['multipart/form-data'],
@@ -241,7 +242,13 @@ export default async function deviceRoutes(fastify) {
         }
 
         const fileBuffer = await data.toBuffer();
-        return controller.uploadDeviceImage(request, reply, id, data, fileBuffer);
+        return controller.uploadDeviceImage(
+          request,
+          reply,
+          id,
+          data,
+          fileBuffer,
+        );
       },
     );
 

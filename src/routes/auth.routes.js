@@ -34,7 +34,9 @@ export default async function authRoutes(fastify) {
     async (request, reply) => {
       const user = await authService.register(request.body);
       request.session.userId = user.id;
-      return reply.status(201).send({ message: 'Реєстрацію успішно завершено', user });
+      return reply
+        .status(201)
+        .send({ message: 'Реєстрацію успішно завершено', user });
     },
   );
 
